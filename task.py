@@ -11,7 +11,6 @@ def clean_task_dataframe(df):
     """
     Ensure correct datatypes and handle missing/invalid values.
     """
-    # Ensure expected columns exist
     expected_columns = ['task_name', 'start_date', 'duration_days', 'expiry_date', 'prompt_date']
     for col in expected_columns:
         if col not in df.columns:
@@ -29,6 +28,19 @@ def clean_task_dataframe(df):
     df['task_name'] = df['task_name'].fillna('')
 
     return df
+
+# Helper function to prepare dataframe for Streamlit display
+def prepare_display_df(df):
+    """
+    Convert datetime columns to string for safe display in Streamlit.
+    """
+    display_df = df.copy()
+    date_cols = ['start_date', 'expiry_date', 'prompt_date']
+    for col in date_cols:
+        display_df[col] = display_df[col].dt.strftime('%Y-%m-%d')
+    if 'expired' in display_df.columns:
+        display_df['expired'] = display_df['expired'].fillna(False)
+    return display_df
 
 # Load or initialize data
 if os.path.exists(DATA_FILE):
@@ -62,20 +74,19 @@ with st.form("task_form"):
 
 # Check for expired tasks
 today = datetime.now()
-
-# Ensure expiry_date column is datetime
 df['expiry_date'] = pd.to_datetime(df['expiry_date'], errors='coerce')
-
-# Identify expired tasks
 df['expired'] = df['expiry_date'] < today
 
-# Show tasks table
+# Prepare safe-to-display dataframe
+display_df = prepare_display_df(df)
+
+# Show all tasks
 st.subheader("📋 All Tasks")
-st.dataframe(df[['task_name', 'start_date', 'duration_days', 'expiry_date', 'prompt_date', 'expired']])
+st.dataframe(display_df[['task_name', 'start_date', 'duration_days', 'expiry_date', 'prompt_date', 'expired']])
 
 # Show expired tasks
-if df['expired'].any():
+if display_df['expired'].any():
     st.subheader("⚠️ Expired Tasks")
-    st.dataframe(df[df['expired']][['task_name', 'start_date', 'expiry_date']])
+    st.dataframe(display_df[display_df['expired']][['task_name', 'start_date', 'expiry_date']])
 else:
     st.success("✅ No expired tasks.")
