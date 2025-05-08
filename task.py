@@ -37,7 +37,11 @@ def prepare_display_df(df):
     display_df = df.copy()
     date_cols = ['start_date', 'expiry_date', 'prompt_date']
     for col in date_cols:
-        display_df[col] = display_df[col].dt.strftime('%Y-%m-%d')
+        if col in display_df.columns:
+            # Ensure column is datetime
+            display_df[col] = pd.to_datetime(display_df[col], errors='coerce')
+            # Convert to string, safely handle NaT
+            display_df[col] = display_df[col].apply(lambda x: x.strftime('%Y-%m-%d') if pd.notnull(x) else '')
     if 'expired' in display_df.columns:
         display_df['expired'] = display_df['expired'].fillna(False)
     return display_df
