@@ -30,7 +30,7 @@ def save_data(new_entry):
     set_with_dataframe(worksheet, updated_df)
 
 # --- Streamlit App ---
-st.title("📝 Task Tracker with Google Sheets Backend")
+st.title("📝 Task Tracker - Sandra")
 
 df = load_data()
 
