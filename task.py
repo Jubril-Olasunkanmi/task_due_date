@@ -18,12 +18,16 @@ def load_data():
     df = get_as_dataframe(worksheet, evaluate_formulas=True, dtype=str)
     if df.empty or 'task_name' not in df.columns:
         df = pd.DataFrame(columns=['task_name', 'start_date', 'duration_days', 'expiry_date', 'prompt_date'])
+    else:
+        df = df.dropna(subset=['task_name'])  # Drop empty rows
     return df
 
-# Save data to Google Sheet
-def save_data(df):
+# Save data to Google Sheet (append mode)
+def save_data(new_entry):
+    existing_df = load_data()
+    updated_df = pd.concat([existing_df, new_entry], ignore_index=True)
     worksheet.clear()
-    set_with_dataframe(worksheet, df)
+    set_with_dataframe(worksheet, updated_df)
 
 # --- Streamlit App ---
 st.title("📝 Task Tracker with Google Sheets Backend")
@@ -47,9 +51,10 @@ with st.form("task_form"):
             'expiry_date': [expiry_date.strftime('%Y-%m-%d')],
             'prompt_date': [prompt_date.strftime('%Y-%m-%d')]
         })
-        df = pd.concat([df, new_entry], ignore_index=True)
-        save_data(df)
+        save_data(new_entry)
         st.success(f"Task '{task_name}' added!")
+        # Reload data after saving
+        df = load_data()
 
 # Check for expired tasks
 df['expiry_date'] = pd.to_datetime(df['expiry_date'], errors='coerce')
