@@ -31,7 +31,7 @@ def append_data(new_entry):
     set_with_dataframe(worksheet, combined_df)
 
 # --- Streamlit App ---
-st.title("📝 Task Tracker with Google Sheets & Email Setup")
+st.title("📝 Task Tracker")
 
 df = load_data()
 
