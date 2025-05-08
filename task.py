@@ -5,8 +5,8 @@ import gspread
 from gspread_dataframe import set_with_dataframe, get_as_dataframe
 
 # --- Google Sheets Setup ---
-SHEET_ID = 'your_google_sheet_id_here'  # replace with your actual Google Sheet ID
-SHEET_NAME = 'Sheet1'
+SHEET_ID = '1EZEkGW-IcItCsDsy3nUO9K1HWeqYfONsp88mvXaxbQE'  # your Google Sheet ID
+SHEET_NAME = 'Sheet1'  # make sure this matches your sheet tab name
 
 # Connect to Google Sheets
 gc = gspread.service_account_from_dict(st.secrets["gcp_service_account"])
