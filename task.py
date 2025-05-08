@@ -17,7 +17,7 @@ worksheet = sh.worksheet(SHEET_NAME)
 def load_data():
     df = get_as_dataframe(worksheet, evaluate_formulas=True, dtype=str)
     df = df.dropna(how='all')  # drop empty rows
-    expected_cols = ['scheduler_name', 'task_name', 'start_date', 'duration_days', 'expiry_date', 'prompt_date', 'expired']
+    expected_cols = ['scheduler_name', 'scheduler_email', 'task_name', 'start_date', 'duration_days', 'expiry_date', 'prompt_date', 'expired']
     for col in expected_cols:
         if col not in df.columns:
             df[col] = ''
@@ -31,13 +31,14 @@ def append_data(new_entry):
     set_with_dataframe(worksheet, combined_df)
 
 # --- Streamlit App ---
-st.title("📝 Task Tracker")
+st.title("📝 Task Tracker with Google Sheets & Email Setup")
 
 df = load_data()
 
 # Input form
 with st.form("task_form"):
     scheduler_name = st.text_input("Your Name (Scheduler)")
+    scheduler_email = st.text_input("Your Email (for alerts)")
     task_name = st.text_input("Task Name")
     start_date = st.date_input("Start Date", datetime.today())
     duration_days = st.number_input("Duration (days)", min_value=1, value=7)
@@ -45,9 +46,10 @@ with st.form("task_form"):
 
     if submitted:
         expiry_date = start_date + timedelta(days=duration_days)
-        prompt_date = expiry_date - timedelta(days=3)
+        prompt_date = expiry_date - timedelta(days=1)  # adjust to 1 day before expiry
         new_entry = pd.DataFrame({
             'scheduler_name': [scheduler_name],
+            'scheduler_email': [scheduler_email],
             'task_name': [task_name],
             'start_date': [start_date.strftime('%Y-%m-%d')],
             'duration_days': [duration_days],
@@ -73,12 +75,12 @@ if not df.empty:
         display_df[col] = display_df[col].apply(lambda x: x.strftime('%Y-%m-%d') if pd.notnull(x) else '')
 
     st.subheader("📋 All Tasks")
-    st.dataframe(display_df[['scheduler_name', 'task_name', 'start_date', 'duration_days', 'expiry_date', 'prompt_date', 'expired']])
+    st.dataframe(display_df[['scheduler_name', 'scheduler_email', 'task_name', 'start_date', 'duration_days', 'expiry_date', 'prompt_date', 'expired']])
 
     # Show expired tasks
     if display_df['expired'].any():
         st.subheader("⚠️ Expired Tasks")
-        st.dataframe(display_df[display_df['expired']][['scheduler_name', 'task_name', 'start_date', 'expiry_date']])
+        st.dataframe(display_df[display_df['expired']][['scheduler_name', 'scheduler_email', 'task_name', 'start_date', 'expiry_date']])
     else:
         st.success("✅ No expired tasks.")
 else:
