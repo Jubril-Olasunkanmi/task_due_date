@@ -1,59 +1,34 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
-import os
+import gspread
+from gspread_dataframe import set_with_dataframe, get_as_dataframe
 
-# File to store tasks
-DATA_FILE = 'tasks.xlsx'
+# --- Google Sheets Setup ---
+SHEET_ID = '1EZEkGW-IcItCsDsy3nUO9K1HWeqYfONsp88mvXaxbQE'
+SHEET_NAME = 'Sheet1'
 
-# Function to clean and ensure correct datatypes
-def clean_task_dataframe(df):
-    """
-    Ensure correct datatypes and handle missing/invalid values.
-    """
-    expected_columns = ['task_name', 'start_date', 'duration_days', 'expiry_date', 'prompt_date']
-    for col in expected_columns:
-        if col not in df.columns:
-            df[col] = pd.NA
+# Connect to Google Sheets
+gc = gspread.service_account_from_dict(st.secrets["gcp_service_account"])
+sh = gc.open_by_key(SHEET_ID)
+worksheet = sh.worksheet(SHEET_NAME)
 
-    # Convert date columns to datetime
-    date_cols = ['start_date', 'expiry_date', 'prompt_date']
-    for col in date_cols:
-        df[col] = pd.to_datetime(df[col], errors='coerce')
-
-    # Ensure duration_days is numeric
-    df['duration_days'] = pd.to_numeric(df['duration_days'], errors='coerce').fillna(0)
-
-    # Fill missing task names with empty string
-    df['task_name'] = df['task_name'].fillna('')
-
+# Load data from Google Sheet
+def load_data():
+    df = get_as_dataframe(worksheet, evaluate_formulas=True, dtype=str)
+    if df.empty or 'task_name' not in df.columns:
+        df = pd.DataFrame(columns=['task_name', 'start_date', 'duration_days', 'expiry_date', 'prompt_date'])
     return df
 
-# Helper function to prepare dataframe for Streamlit display
-def prepare_display_df(df):
-    """
-    Convert datetime columns to string for safe display in Streamlit.
-    """
-    display_df = df.copy()
-    date_cols = ['start_date', 'expiry_date', 'prompt_date']
-    for col in date_cols:
-        if col in display_df.columns:
-            # Ensure column is datetime
-            display_df[col] = pd.to_datetime(display_df[col], errors='coerce')
-            # Convert to string, safely handle NaT
-            display_df[col] = display_df[col].apply(lambda x: x.strftime('%Y-%m-%d') if pd.notnull(x) else '')
-    if 'expired' in display_df.columns:
-        display_df['expired'] = display_df['expired'].fillna(False)
-    return display_df
+# Save data to Google Sheet
+def save_data(df):
+    worksheet.clear()
+    set_with_dataframe(worksheet, df)
 
-# Load or initialize data
-if os.path.exists(DATA_FILE):
-    df = pd.read_excel(DATA_FILE)
-    df = clean_task_dataframe(df)
-else:
-    df = pd.DataFrame(columns=['task_name', 'start_date', 'duration_days', 'expiry_date', 'prompt_date'])
+# --- Streamlit App ---
+st.title("📝 Task Tracker with Google Sheets Backend")
 
-st.title("📝 Task Tracker with Expiry Alerts")
+df = load_data()
 
 # Input form
 with st.form("task_form"):
@@ -67,24 +42,27 @@ with st.form("task_form"):
         prompt_date = expiry_date - timedelta(days=3)
         new_entry = pd.DataFrame({
             'task_name': [task_name],
-            'start_date': [start_date],
+            'start_date': [start_date.strftime('%Y-%m-%d')],
             'duration_days': [duration_days],
-            'expiry_date': [expiry_date],
-            'prompt_date': [prompt_date]
+            'expiry_date': [expiry_date.strftime('%Y-%m-%d')],
+            'prompt_date': [prompt_date.strftime('%Y-%m-%d')]
         })
         df = pd.concat([df, new_entry], ignore_index=True)
-        df.to_excel(DATA_FILE, index=False)
+        save_data(df)
         st.success(f"Task '{task_name}' added!")
 
 # Check for expired tasks
-today = datetime.now()
 df['expiry_date'] = pd.to_datetime(df['expiry_date'], errors='coerce')
+today = datetime.now()
 df['expired'] = df['expiry_date'] < today
 
-# Prepare safe-to-display dataframe
-display_df = prepare_display_df(df)
+# Prepare display DataFrame
+display_df = df.copy()
+date_cols = ['start_date', 'expiry_date', 'prompt_date']
+for col in date_cols:
+    display_df[col] = pd.to_datetime(display_df[col], errors='coerce')
+    display_df[col] = display_df[col].apply(lambda x: x.strftime('%Y-%m-%d') if pd.notnull(x) else '')
 
-# Show all tasks
 st.subheader("📋 All Tasks")
 st.dataframe(display_df[['task_name', 'start_date', 'duration_days', 'expiry_date', 'prompt_date', 'expired']])
 
