@@ -5,8 +5,8 @@ import gspread
 from gspread_dataframe import set_with_dataframe, get_as_dataframe
 
 # --- Google Sheets Setup ---
-SHEET_ID = '1EZEkGW-IcItCsDsy3nUO9K1HWeqYfONsp88mvXaxbQE'  # your Google Sheet ID
-SHEET_NAME = 'Sheet1'  # make sure this matches your sheet tab name
+SHEET_ID = '1EZEkGW-IcItCsDsy3nUO9K1HWeqYfONsp88mvXaxbQE'
+SHEET_NAME = 'Sheet1'
 
 # Connect to Google Sheets
 gc = gspread.service_account_from_dict(st.secrets["gcp_service_account"])
@@ -16,10 +16,12 @@ worksheet = sh.worksheet(SHEET_NAME)
 # Load data from Google Sheet
 def load_data():
     df = get_as_dataframe(worksheet, evaluate_formulas=True, dtype=str)
-    df = df.dropna(how='all')  # drop completely empty rows
-    if df.empty or 'task_name' not in df.columns:
-        df = pd.DataFrame(columns=['scheduler_name', 'task_name', 'start_date', 'duration_days', 'expiry_date', 'prompt_date'])
-    return df
+    df = df.dropna(how='all')  # drop empty rows
+    expected_cols = ['scheduler_name', 'task_name', 'start_date', 'duration_days', 'expiry_date', 'prompt_date', 'expired']
+    for col in expected_cols:
+        if col not in df.columns:
+            df[col] = ''
+    return df[expected_cols]  # reorder columns
 
 # Save data to Google Sheet (append new row)
 def append_data(new_entry):
@@ -50,10 +52,12 @@ with st.form("task_form"):
             'start_date': [start_date.strftime('%Y-%m-%d')],
             'duration_days': [duration_days],
             'expiry_date': [expiry_date.strftime('%Y-%m-%d')],
-            'prompt_date': [prompt_date.strftime('%Y-%m-%d')]
+            'prompt_date': [prompt_date.strftime('%Y-%m-%d')],
+            'expired': ['']  # initially empty; we’ll compute later
         })
         append_data(new_entry)
         st.success(f"Task '{task_name}' added by {scheduler_name}!")
+        df = load_data()  # reload updated data
 
 # Check for expired tasks
 if not df.empty:
