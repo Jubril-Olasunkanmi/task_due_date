@@ -2,3 +2,5 @@ streamlit==1.34.0
 pandas==2.2.2
 openpyxl==3.1.2
 pyarrow==15.0.2
+gspread==5.12.0
+gspread_dataframe==3.3.0
